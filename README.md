@@ -18,7 +18,7 @@ Advancing Kubernetes and High Performance Computing
 
 ## 1. Vision and Goals Of The Project:
 
-The project is to continue the work of last year's students from BU in the cloud computing courses. It aims to enabling Lustre to be a well-behaved microservice in Kubernetes. Luster is a distributed file system used in high performance computing (HPC) and can be used in Kubernetes to be extended microservices, so that scientists only need to learn Kubernetes command line to operate Lustre.
+The project is to continue the work of last year's students from BU in the cloud computing courses. It aims to enabling Lustre to be a well-behaved microservice in Kubernetes. Lustre is a distributed file system used in high performance computing (HPC) and can be used in Kubernetes to be extended microservices, so that scientists only need to learn Kubernetes command line to operate Lustre.
 
 In order to achieve these goals, we set two major specfictions. First, get more automatic operations working in K8s by adding Go code to create "operators". Second, improve the performance of running Kubervirt in containers by writing C++ code to extend Microsoft's freeflow overlay network.
 
@@ -40,7 +40,12 @@ In order to achieve these goals, we set two major specfictions. First, get more 
 
 ## 2. Users/Personas Of The Project:
 
+Because of Lustre's wide scalability, high-performance, and high-availability, and Kubernetes' portability and extensibility, cloud-native HPC with Lustre has two major kinds of users:
 
+- Researchers who need to perform HPC tasks with parallel file system.
+- Data engineers and analysts who need to analyze massive volumes of data.
+
+When users utilize Lustre, they don't need to have knowledge about file system, perform operations to scale up or to scale down the pods, create a new Lustre instance if one is crashed, or manually setup complex Kubernetes configurations.
 
 ## 3. Scope and Features Of The Project:
 
@@ -90,3 +95,4 @@ The minimum acceptance criteria is to ..
 2/19/2021 **Demo 1**: Setup single instance on MOC
 
 - Follow the instruction of last year's GitHub to create instance on MOC
+
