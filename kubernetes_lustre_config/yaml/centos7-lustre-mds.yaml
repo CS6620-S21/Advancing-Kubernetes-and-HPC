@@ -1,0 +1,41 @@
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    special: key
+    expose: me
+  name: lustre-mds
+spec:
+  hostname: lustre-mds
+  subdomain: default-lustre
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: containerdisk
+      - disk:
+          bus: virtio
+        name: vol-mds
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      rng: {}
+    machine:
+      type: ""
+    resources:
+      requests:
+        memory: 1024M
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - name: vol-mds
+    persistentVolumeClaim:
+      claimName: vol-mds
+  - containerDisk:
+      image: nakulvr/centos:lustre-server
+    name: containerdisk
+  - cloudInitNoCloud:
+      secretRef:
+        name: vmi-lustre-mds-secret
+    name: cloudinitdisk

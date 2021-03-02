@@ -1,0 +1,47 @@
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    special: key
+    expose: me
+  name: lustre-oss
+spec:
+  hostname: lustre-oss
+  subdomain: default-lustre
+  domain:
+    devices:
+      disks:
+       - name: containerdisk
+         disk:
+          bus: virtio
+       - name: vol-oss1
+         disk:
+          bus: virtio
+       - name: vol-oss2
+         disk:
+          bus: virtio
+       - name: cloudinitdisk
+         disk:
+          bus: virtio
+      rng: {}
+    machine:
+      type: ""
+    resources:
+      requests:
+        memory: 1024M
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - name: vol-oss1
+    persistentVolumeClaim:
+      claimName: vol-oss1
+  - name: vol-oss2
+    persistentVolumeClaim:
+      claimName: vol-oss2
+  - containerDisk:
+      image: nakulvr/centos:lustre-server
+    name: containerdisk
+  - cloudInitNoCloud:
+      secretRef:
+        name: vmi-lustre-oss-secret
+    name: cloudinitdisk

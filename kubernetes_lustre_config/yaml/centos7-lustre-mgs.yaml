@@ -1,0 +1,54 @@
+---
+apiVersion: kubevirt.io/v1alpha3
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    special: key
+    expose: me
+  name: lustre-mgs
+spec:
+  hostname: lustre-mgs
+  subdomain: default-lustre
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: containerdisk
+      - disk:
+          bus: virtio
+        name: vol-mgs
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      rng: {}
+    machine:
+      type: ""
+    resources:
+      requests:
+        memory: 1024M
+  terminationGracePeriodSeconds: 0
+  volumes:
+  - name: vol-mgs
+    persistentVolumeClaim:
+      claimName: vol-mgs
+  - containerDisk:
+      image: nakulvr/centos:lustre-server
+    name: containerdisk
+  - cloudInitNoCloud:
+      secretRef:
+        name: vmi-lustre-mgs-secret
+    name: cloudinitdisk
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: default-lustre
+spec:
+  selector:
+    expose: me
+  clusterIP: None
+  ports:
+  - name: foo # Actually, no port is needed.
+    port: 1234
+    targetPort: 1234
