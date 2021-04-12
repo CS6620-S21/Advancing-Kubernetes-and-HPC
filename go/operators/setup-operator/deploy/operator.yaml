@@ -13,10 +13,11 @@ spec:
         name: setup-operator
     spec:
       serviceAccountName: setup-operator
+      hostNetwork: true
       containers:
         - name: setup-operator
           # Replace this with the built image name
-          image: REPLACE_IMAGE
+          image: docker.io/yumengwu/setup-operator
           command:
           - setup-operator
           imagePullPolicy: Always

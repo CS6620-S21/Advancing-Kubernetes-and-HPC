@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	k8smetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubevirtv1 "kubevirt.io/client-go/api/v1"
@@ -89,6 +88,8 @@ type ReconcilePodSet struct {
 }
 
 var sshKeyFilePath string = ""
+var sshPublicKey string = ""
+var sshPrivateKey string = ""
 
 type LustreVMStatus int
 
@@ -135,7 +136,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	lbls := labels.Set{
+	/*lbls := labels.Set{
 		"app":     podSet.Name,
 		"version": "v0.1",
 	}
@@ -180,7 +181,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 			strings.HasPrefix(pod.GetObjectMeta().GetName(), `virt-launcher-lustre`) {
 			existingVirtPodNames = append(existingVirtPodNames, pod.GetObjectMeta().GetName())
 		}
-	}
+	}*/
 
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	namespace, _, err := clientConfig.Namespace()
@@ -198,7 +199,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	nodeIp := []string{}
 	for i := 0; i < len(nodes.Items); i++ {
 		ip := nodes.Items[i].Status.Addresses
-		fmt.Println(nodeIp, nodes.Items[i].GetLabels()["kubernetes.io/hostname"])
+		fmt.Println(ip[0].Address, nodes.Items[i].GetLabels()["kubernetes.io/hostname"])
 		hostnames = append(hostnames, nodes.Items[i].GetLabels()["kubernetes.io/hostname"])
 		nodeIp = append(nodeIp, ip[0].Address)
 	}
@@ -254,6 +255,8 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	sshKeyFilePath = podSet.Spec.SSHKeyPath
+	sshPublicKey = podSet.Spec.SSHPublicKey
+	sshPrivateKey = podSet.Spec.SSHPrivateKey
 	// sshKeyFile := podSet.Spec.SSHKeyPath
 	// fmt.Println("ssh key dir:", sshKeyFile)
 	// fmt.Println("private key:\n", getFileContent(sshKeyFile))
@@ -277,6 +280,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	} else if mgsStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("mgs vm is running")
 		if checkVMMountStatus(mgsIp) {
+			fmt.Println("Lustre is mounted on mgs vm")
 			mgsStatus = LustreVMStatusMounted
 			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
 		} else {
@@ -301,6 +305,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	} else if mdsStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("mds vm is running")
 		if checkVMMountStatus(mdsIp) {
+			fmt.Println("Lustre is mounted on mds vm")
 			mdsStatus = LustreVMStatusMounted
 			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
 		} else {
@@ -327,6 +332,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	} else if ossStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("oss vm is running")
 		if checkVMMountStatus(ossIp) {
+			fmt.Println("Lustre is mounted on oss vm")
 			ossStatus = LustreVMStatusMounted
 			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
 		} else {
@@ -348,6 +354,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	} else if clientStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("client vm is running")
 		if checkVMMountStatus(clientIp) {
+			fmt.Println("Lustre is mounted on client vm")
 			clientStatus = LustreVMStatusMounted
 		} else {
 			return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
@@ -430,7 +437,7 @@ func connectToHost(user, host string, key ssh.Signer) (*ssh.Client, *ssh.Session
 }
 
 func createPv(ip string, path string, hostname string, size string, pvName string) {
-	key, err := getKeyFile(getFileContent(sshKeyFilePath))
+	key, err := getKeyFile(sshPrivateKey)
 	if err != nil {
 		panic(err)
 	}
@@ -602,7 +609,7 @@ func createMgsVm() {
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 					UserData: `#cloud-config
 ssh_authorized_keys:
-  - ` + getFileContent(sshKeyFilePath+`.pub`) + `
+  - ` + sshPublicKey + `
 runcmd:
   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
@@ -703,7 +710,7 @@ func createMdsVm() {
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 					UserData: `#cloud-config
 ssh_authorized_keys:
-  - ` + getFileContent(sshKeyFilePath+`.pub`) + `
+  - ` + sshPublicKey + `
 runcmd:
   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
@@ -812,7 +819,7 @@ func createOssVm() {
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 					UserData: `#cloud-config
 ssh_authorized_keys:
-  - ` + getFileContent(sshKeyFilePath+`.pub`) + `
+  - ` + sshPublicKey + `
 runcmd:
   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
@@ -916,7 +923,7 @@ func createClientVM() {
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 					UserData: `#cloud-config
 ssh_authorized_keys:
-  - ` + getFileContent(sshKeyFilePath+`.pub`) + `
+  - ` + sshPublicKey + `
 runcmd:
   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
@@ -961,7 +968,7 @@ runcmd:
 }
 
 func checkVMMountStatus(ip string) bool {
-	key, err := getKeyFile(getFileContent(sshKeyFilePath))
+	key, err := getKeyFile(sshPrivateKey)
 	if err != nil {
 		panic(err)
 	}

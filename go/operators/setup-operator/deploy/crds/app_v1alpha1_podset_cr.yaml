@@ -5,3 +5,7 @@ metadata:
 spec:
   # Add fields here
   sshKeyPath: /home/centos/.ssh/stbm_rsa
+  sshPublicKey: "Your ssh public key"
+  sshPrivateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\n\
+                 Your ssh private key\n\ 
+                  -----END OPENSSH PRIVATE KEY-----"

@@ -10,6 +10,18 @@ spec:
   - JSONPath: .status.sshKeyPath
     name: Current
     type: string
+  - JSONPath: .spec.sshPrivateKey
+    name: Default
+    type: string
+  - JSONPath: .status.sshPrivateKey
+    name: Current
+    type: string
+  - JSONPath: .spec.sshPublicKey
+    name: Default
+    type: string
+  - JSONPath: .status.sshPublicKey
+    name: Current
+    type: string
   group: app.example.com
   names:
     kind: PodSet
@@ -40,8 +52,15 @@ spec:
             sshKeyPath:
               format: string
               type: string
+            sshPublicKey:
+              format: string
+              type: string
+            sshPrivateKey:
+              format: string
+              type: string
           required:
           - sshKeyPath
+          - sshPrivateKey
           type: object
         status:
           description: PodSetStatus defines the observed state of PodSet
@@ -53,9 +72,17 @@ spec:
             sshKeyPath:
               format: string
               type: string
+            sshPublicKey:
+              format: string
+              type: string
+            sshPrivateKey:
+              format: string
+              type: string
           required:
           - podNames
           - sshKeyPath
+          - sshPublicKey
+          - sshPrivateKey
           type: object
   version: v1alpha1
   versions:
