@@ -1,0 +1,5 @@
+sshPublicKey: "Your ssh public key"
+sshPrivateKey: "-----BEGIN OPENSSH PRIVATE KEY-----\n\
+                Your ssh private key\n\
+                -----END OPENSSH PRIVATE KEY-----"
+

@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: setup-operator
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: setup-operator
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: setup-operator
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: setup-operator
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: setup-operator
+  namespace: default
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: setup-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: setup-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: setup-operator
+subjects:
+- kind: ServiceAccount
+  name: setup-operator
+  namespace: default
+---
+apiVersion: app.example.com/v1alpha1
+kind: PodSet
+metadata:
+  name: example-podset
+spec:
+  # Add fields here
+  sshKeyPath: /home/centos/.ssh/stbm_rsa
+  sshPublicKey: {{ .Values.sshPublicKey | quote }}
+  sshPrivateKey: {{ .Values.sshPrivateKey | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: setup-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: setup-operator
+  template:
+    metadata:
+      labels:
+        name: setup-operator
+    spec:
+      serviceAccountName: setup-operator
+      hostNetwork: true
+      containers:
+        - name: setup-operator
+          # Replace this with the built image name
+          image: docker.io/yumengwu/setup-operator
+          command:
+          - setup-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "setup-operator"
+
