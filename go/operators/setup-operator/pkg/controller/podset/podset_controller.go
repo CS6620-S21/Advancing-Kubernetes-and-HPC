@@ -97,8 +97,10 @@ const (
 	LustreVMStatusNone LustreVMStatus = iota
 	LustreVMStatusCreated
 	LustreVMStatusRunning
-	LustreVMStatusRunningAfterWaiting
 	LustreVMStatusMounted
+	LustreVMStatusRecoveryStart
+	LustreVMStatusRecoveryLaunching
+	LustreVMStatusRecoveryRunning
 )
 
 var mgsStatus LustreVMStatus = LustreVMStatusNone
@@ -210,6 +212,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	// get lustre vm status
+	hasOss, hasClient := false, false
 	for _, vm := range vmList.Items {
 		var vmIp string = ""
 		if len(vm.Status.Interfaces) > 0 {
@@ -234,15 +237,19 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 				mgsStatus = LustreVMStatusCreated
 			}
 		} else if vm.Name == `lustre-oss` {
+			hasOss = true
 			if len(vmIp) > 0 && strings.Contains(vmIp, "/") {
 				ossIp = strings.Split(vmIp, "/")[0]
 				if ossStatus == LustreVMStatusNone || ossStatus == LustreVMStatusCreated {
 					ossStatus = LustreVMStatusRunning
+				} else if ossStatus == LustreVMStatusRecoveryLaunching {
+					ossStatus = LustreVMStatusRecoveryRunning
 				}
-			} else {
+			} else if ossStatus != LustreVMStatusRecoveryLaunching && ossStatus != LustreVMStatusRecoveryRunning && ossStatus != LustreVMStatusRecoveryStart {
 				ossStatus = LustreVMStatusCreated
 			}
 		} else if vm.Name == `lustre-client` {
+			hasClient = true
 			if len(vmIp) > 0 && strings.Contains(vmIp, "/") {
 				clientIp = strings.Split(vmIp, "/")[0]
 				if clientStatus == LustreVMStatusNone || clientStatus == LustreVMStatusCreated {
@@ -262,6 +269,72 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	// fmt.Println("private key:\n", getFileContent(sshKeyFile))
 	// fmt.Println("public key:\n", getFileContent(sshKeyFile+".pub"))
 
+	if !hasOss && ossStatus != LustreVMStatusNone {
+		ossStatus = LustreVMStatusRecoveryStart
+	}
+	if !hasClient {
+		clientStatus = LustreVMStatusNone
+	}
+
+	if mgsStatus == LustreVMStatusRunning && checkVMMountStatus(mgsIp) {
+		mgsStatus = LustreVMStatusMounted
+	}
+	if mdsStatus == LustreVMStatusRunning && checkVMMountStatus(mdsIp) {
+		mdsStatus = LustreVMStatusMounted
+	}
+	if ossStatus == LustreVMStatusRunning && checkVMMountStatus(ossIp) {
+		ossStatus = LustreVMStatusMounted
+	}
+	if clientStatus == LustreVMStatusRunning && checkVMMountStatus(clientIp) {
+		clientStatus = LustreVMStatusMounted
+	}
+
+	if mgsStatus == LustreVMStatusNone {
+		fmt.Println("Mgs: not created")
+	} else if mgsStatus == LustreVMStatusCreated {
+		fmt.Println("Mgs: created")
+	} else if mgsStatus == LustreVMStatusRunning {
+		fmt.Println("Mgs: running")
+	} else if mgsStatus == LustreVMStatusMounted {
+		fmt.Println("Mgs: mounted")
+	}
+
+	if mdsStatus == LustreVMStatusNone {
+		fmt.Println("Mds: not created")
+	} else if mdsStatus == LustreVMStatusCreated {
+		fmt.Println("Mds: created")
+	} else if mdsStatus == LustreVMStatusRunning {
+		fmt.Println("Mds: running")
+	} else if mdsStatus == LustreVMStatusMounted {
+		fmt.Println("Mds: mounted")
+	}
+
+	if ossStatus == LustreVMStatusNone {
+		fmt.Println("Oss: not created")
+	} else if ossStatus == LustreVMStatusCreated {
+		fmt.Println("Oss: created")
+	} else if ossStatus == LustreVMStatusRunning {
+		fmt.Println("Oss: running")
+	} else if ossStatus == LustreVMStatusMounted {
+		fmt.Println("Oss: mounted")
+	} else if ossStatus == LustreVMStatusRecoveryStart {
+		fmt.Println("Oss: start to recover")
+	} else if ossStatus == LustreVMStatusRecoveryLaunching {
+		fmt.Println("Oss: launching recovery node")
+	} else if ossStatus == LustreVMStatusRecoveryRunning {
+		fmt.Println("Oss: recovery is running")
+	}
+
+	if clientStatus == LustreVMStatusNone {
+		fmt.Println("Client: not created")
+	} else if clientStatus == LustreVMStatusCreated {
+		fmt.Println("Client: created")
+	} else if clientStatus == LustreVMStatusRunning {
+		fmt.Println("Client: running")
+	} else if clientStatus == LustreVMStatusMounted {
+		fmt.Println("Client: mounted")
+	}
+
 	if mgsStatus == LustreVMStatusNone {
 		fmt.Println("create mgs vm")
 		mgsIp = nodeIp[1]
@@ -275,9 +348,6 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		fmt.Println("mgs vm created")
 		return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
 	} else if mgsStatus == LustreVMStatusRunning {
-		mgsStatus = LustreVMStatusRunningAfterWaiting
-		return reconcile.Result{Requeue: true, RequeueAfter: 120 * time.Second}, nil
-	} else if mgsStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("mgs vm is running")
 		if checkVMMountStatus(mgsIp) {
 			fmt.Println("Lustre is mounted on mgs vm")
@@ -300,9 +370,6 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		fmt.Println("mds vm created")
 		return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
 	} else if mdsStatus == LustreVMStatusRunning {
-		mdsStatus = LustreVMStatusRunningAfterWaiting
-		return reconcile.Result{Requeue: true, RequeueAfter: 120 * time.Second}, nil
-	} else if mdsStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("mds vm is running")
 		if checkVMMountStatus(mdsIp) {
 			fmt.Println("Lustre is mounted on mds vm")
@@ -320,19 +387,33 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		createPv(ossIp, `/pvc-data/ost2`, hostnames[1], `1Gi`, `pv-oss2`)
 		createPvc(`vol-oss1`, `1Gi`)
 		createPvc(`vol-oss2`, `1Gi`)
-		createOssVm()
+		createOssVm(false)
 		ossStatus = LustreVMStatusCreated
 		return reconcile.Result{Requeue: true, RequeueAfter: 240 * time.Second}, nil
 	} else if ossStatus == LustreVMStatusCreated {
 		fmt.Println("oss vm created")
 		return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
 	} else if ossStatus == LustreVMStatusRunning {
-		ossStatus = LustreVMStatusRunningAfterWaiting
-		return reconcile.Result{Requeue: true, RequeueAfter: 120 * time.Second}, nil
-	} else if ossStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("oss vm is running")
 		if checkVMMountStatus(ossIp) {
 			fmt.Println("Lustre is mounted on oss vm")
+			ossStatus = LustreVMStatusMounted
+			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
+		} else {
+			return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
+		}
+	} else if ossStatus == LustreVMStatusRecoveryStart {
+		fmt.Println("Start to recover oss")
+		createOssVm(true)
+		ossStatus = LustreVMStatusRecoveryLaunching
+		return reconcile.Result{Requeue: true, RequeueAfter: 240 * time.Second}, nil
+	} else if ossStatus == LustreVMStatusRecoveryLaunching {
+		fmt.Println("Wait recovery oss running")
+		return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
+	} else if ossStatus == LustreVMStatusRecoveryRunning {
+		fmt.Println("Oss recovery vm is running")
+		// enableOssRecovery(ossIp)
+		if checkVMMountStatus(ossIp) {
 			ossStatus = LustreVMStatusMounted
 			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
 		} else {
@@ -349,9 +430,6 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		fmt.Println("client vm created")
 		return reconcile.Result{Requeue: true, RequeueAfter: 60 * time.Second}, nil
 	} else if clientStatus == LustreVMStatusRunning {
-		clientStatus = LustreVMStatusRunningAfterWaiting
-		return reconcile.Result{Requeue: true, RequeueAfter: 120 * time.Second}, nil
-	} else if clientStatus == LustreVMStatusRunningAfterWaiting {
 		fmt.Println("client vm is running")
 		if checkVMMountStatus(clientIp) {
 			fmt.Println("Lustre is mounted on client vm")
@@ -389,7 +467,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 
 	// // Pod already exists - don't requeue
 	// reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
+	return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, nil
 }
 
 func getFileContent(filename string) string {
@@ -765,7 +843,7 @@ runcmd:
 	fmt.Println(fetchedVMI, err)
 }
 
-func createOssVm() {
+func createOssVm(recovery bool) {
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
 	if err != nil {
@@ -787,6 +865,59 @@ func createOssVm() {
 			corev1.ResourceMemory: resource.MustParse("1024M"),
 		},
 	}
+
+	vmUserData := ""
+	if !recovery {
+		vmUserData = `#cloud-config
+ssh_authorized_keys:
+  - ` + sshPublicKey + `
+runcmd:
+  - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
+  - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
+  - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
+  - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
+  - sudo /sbin/modprobe -v zfs >/dev/null 2>&1
+  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 /dev/vdb > /dev/null 2>&1
+  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 /dev/vdc > /dev/null 2>&1
+  - sudo /usr/bin/mkdir /ost1
+  - sudo /usr/bin/mkdir /ost2
+  - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
+  - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`
+	} else {
+		vmUserData = `#cloud-config
+ssh_authorized_keys:
+  - ` + sshPublicKey + `
+runcmd:
+  - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
+  - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
+  - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
+  - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
+  - sudo /sbin/modprobe -v zfs >/dev/null 2>&1
+  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 --reformat /dev/vdb > /dev/null 2>&1
+  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 --reformat /dev/vdc > /dev/null 2>&1
+  - sudo /usr/bin/mkdir /ost1
+  - sudo /usr/bin/mkdir /ost2
+  - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
+  - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
+  - sudo /usr/sbin/mount.lustre /dev/vdc /ost2
+  - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`
+	}
+
+	// 	vmRuncmd := `runcmd:
+	//   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
+	//   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
+	//   - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
+	//   - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
+	//   - sudo /sbin/modprobe -v zfs >/dev/null 2>&1`
+	// 	if !recovery {
+	// 		vmRuncmd += `
+	//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 /dev/vdb > /dev/null 2>&1
+	//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 /dev/vdc > /dev/null 2>&1
+	//   - sudo /usr/bin/mkdir /ost1
+	//   - sudo /usr/bin/mkdir /ost2
+	//   - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
+	//   - sudo /usr/sbin/mount.lustre /dev/vdc /ost2
+	// `
 
 	vm.Spec.Volumes = []kubevirtv1.Volume{
 		{
@@ -817,21 +948,22 @@ func createOssVm() {
 			Name: "cloudinitdisk",
 			VolumeSource: kubevirtv1.VolumeSource{
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
-					UserData: `#cloud-config
-ssh_authorized_keys:
-  - ` + sshPublicKey + `
-runcmd:
-  - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
-  - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
-  - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
-  - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
-  - sudo /sbin/modprobe -v zfs >/dev/null 2>&1
-  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 /dev/vdb > /dev/null 2>&1
-  - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 /dev/vdc > /dev/null 2>&1
-  - sudo /usr/bin/mkdir /ost1
-  - sudo /usr/bin/mkdir /ost2
-  - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
-  - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`,
+					UserData: vmUserData,
+					// 					UserData: `#cloud-config
+					// ssh_authorized_keys:
+					//   - ` + sshPublicKey + `
+					// runcmd:
+					//   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
+					//   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
+					//   - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
+					//   - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
+					//   - sudo /sbin/modprobe -v zfs >/dev/null 2>&1
+					//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 --reformat /dev/vdb > /dev/null 2>&1
+					//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 --reformat /dev/vdc > /dev/null 2>&1
+					//   - sudo /usr/bin/mkdir /ost1
+					//   - sudo /usr/bin/mkdir /ost2
+					//   - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
+					//   - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`,
 				},
 			},
 		},
@@ -976,6 +1108,7 @@ func checkVMMountStatus(ip string) bool {
 	client, session, err := connectToHost("centos", ip+`:22`, key)
 	if err != nil {
 		fmt.Println(err)
+		return false
 	}
 
 	var b bytes.Buffer
