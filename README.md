@@ -54,11 +54,11 @@ Environement setting up based on the instructions of last year's student group:
 - instal, set up, initializations and execute the cloud, Kubernetes Clusters, Kubervirt, Containerized Lustre and operators
 - set up Freeflow TCP
 
-Go code to create "operators" that manipulate the instance, cluster and node of Luster with Kubernetes:
+Go code to create "operators" that manipulate the instance, cluster and node of Lustre with Kubernetes:
 
 - Generate a new instance when an instance of Lustre crashes
 - Install Lustre with various Kubernetes configurations in a user-friendly way
-- upgrade a new Luster with simple with simple command line
+- upgrade a new Lustre with simple with simple command line
 - manage the operations with visualized dashboard
 
 [need modification] C++ implementaion to get RDMA and Freeflow to run with Lustre, explore the usage of DPDK from Intel: 
