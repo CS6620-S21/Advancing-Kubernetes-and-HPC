@@ -138,53 +138,6 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	/*lbls := labels.Set{
-		"app":     podSet.Name,
-		"version": "v0.1",
-	}
-
-	// get operator pods
-	existingPods := &corev1.PodList{}
-	err = r.client.List(
-		context.TODO(),
-		existingPods,
-		&client.ListOptions{
-			Namespace:     request.Namespace,
-			LabelSelector: labels.SelectorFromSet(lbls),
-		})
-	if err != nil {
-		reqLogger.Error(err, "failed to list existing pods in the podSet")
-		return reconcile.Result{}, err
-	}
-
-	existingPodNames := []string{}
-	for _, pod := range existingPods.Items {
-		if pod.GetObjectMeta().GetDeletionTimestamp() != nil {
-			continue
-		}
-		if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning {
-			existingPodNames = append(existingPodNames, pod.GetObjectMeta().GetName())
-		}
-	}
-
-	// get kubevirt pods
-	existingVirtPods := &corev1.PodList{}
-	r.client.List(context.TODO(),
-		existingVirtPods,
-		&client.ListOptions{
-			Namespace: "",
-		})
-	existingVirtPodNames := []string{}
-	for _, pod := range existingVirtPods.Items {
-		if pod.GetObjectMeta().GetDeletionTimestamp() != nil {
-			continue
-		}
-		if (pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodRunning) &&
-			strings.HasPrefix(pod.GetObjectMeta().GetName(), `virt-launcher-lustre`) {
-			existingVirtPodNames = append(existingVirtPodNames, pod.GetObjectMeta().GetName())
-		}
-	}*/
-
 	clientConfig := kubecli.DefaultClientConfig(&pflag.FlagSet{})
 	namespace, _, err := clientConfig.Namespace()
 	virtClient, err := kubecli.GetKubevirtClientFromClientConfig(clientConfig)
@@ -264,10 +217,6 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 	sshKeyFilePath = podSet.Spec.SSHKeyPath
 	sshPublicKey = podSet.Spec.SSHPublicKey
 	sshPrivateKey = podSet.Spec.SSHPrivateKey
-	// sshKeyFile := podSet.Spec.SSHKeyPath
-	// fmt.Println("ssh key dir:", sshKeyFile)
-	// fmt.Println("private key:\n", getFileContent(sshKeyFile))
-	// fmt.Println("public key:\n", getFileContent(sshKeyFile+".pub"))
 
 	if !hasOss && ossStatus != LustreVMStatusNone {
 		ossStatus = LustreVMStatusRecoveryStart
@@ -414,6 +363,7 @@ func (r *ReconcilePodSet) Reconcile(request reconcile.Request) (reconcile.Result
 		fmt.Println("Oss recovery vm is running")
 		// enableOssRecovery(ossIp)
 		if checkVMMountStatus(ossIp) {
+			fmt.Println("Oss recovery is mounted")
 			ossStatus = LustreVMStatusMounted
 			return reconcile.Result{Requeue: true, RequeueAfter: 5 * time.Second}, nil
 		} else {
@@ -903,22 +853,6 @@ runcmd:
   - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`
 	}
 
-	// 	vmRuncmd := `runcmd:
-	//   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
-	//   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
-	//   - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
-	//   - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
-	//   - sudo /sbin/modprobe -v zfs >/dev/null 2>&1`
-	// 	if !recovery {
-	// 		vmRuncmd += `
-	//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 /dev/vdb > /dev/null 2>&1
-	//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 /dev/vdc > /dev/null 2>&1
-	//   - sudo /usr/bin/mkdir /ost1
-	//   - sudo /usr/bin/mkdir /ost2
-	//   - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
-	//   - sudo /usr/sbin/mount.lustre /dev/vdc /ost2
-	// `
-
 	vm.Spec.Volumes = []kubevirtv1.Volume{
 		{
 			Name: `vol-oss1`,
@@ -949,21 +883,6 @@ runcmd:
 			VolumeSource: kubevirtv1.VolumeSource{
 				CloudInitNoCloud: &kubevirtv1.CloudInitNoCloudSource{
 					UserData: vmUserData,
-					// 					UserData: `#cloud-config
-					// ssh_authorized_keys:
-					//   - ` + sshPublicKey + `
-					// runcmd:
-					//   - sudo exec /sbin/modprobe -v lnet >/dev/null 2>&1
-					//   - /sbin/lsmod | /bin/grep lustre 1>/dev/null 2>&1
-					//   - sudo /sbin/modprobe -v lustre >/dev/null 2>&1
-					//   - /sbin/lsmod | /bin/grep zfs 1>/dev/null 2>&1
-					//   - sudo /sbin/modprobe -v zfs >/dev/null 2>&1
-					//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=1 --reformat /dev/vdb > /dev/null 2>&1
-					//   - sudo /usr/sbin/mkfs.lustre --ost --fsname=lustrefs --mgsnode=` + mgsIp + `@tcp0 --index=2 --reformat /dev/vdc > /dev/null 2>&1
-					//   - sudo /usr/bin/mkdir /ost1
-					//   - sudo /usr/bin/mkdir /ost2
-					//   - sudo /usr/sbin/mount.lustre /dev/vdb /ost1
-					//   - sudo /usr/sbin/mount.lustre /dev/vdc /ost2`,
 				},
 			},
 		},
