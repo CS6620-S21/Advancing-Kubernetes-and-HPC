@@ -4,21 +4,26 @@
 
 Advancing Kubernetes and High Performance Computing
 
-| Team Mentor        | Email                                           |
+| Mentor             | Email                                           |
 | ------------------ | ----------------------------------------------- |
 | Dan Lambright      | [dlambrig@gmail.com](mailto:dlambrig@gmail.com) |
 | **Team Members**   | **Email**                                       |
+| Jiayao Li          | li.jiayao@northeastern.edu                      |
 | Vedaj Jeeja Padman | jeejapadman.v@northeastern.edu                  |
 | Yumeng Wu          | wu.yume@northeastern.edu                        |
-| Jiayao Li          | li.jiayao@northeastern.edu                      |
-
-
+|                    |                                                 |
 
 ## Project Description
 
-## 1. Vision and Goals Of The Project:
+The project is a continuation of the work done by the students of the Cloud Computing course acrosss both Boston University and Northeastern University over the past few years.
 
-The project is to continue the work of last year's students from BU in the cloud computing courses. It aims to enabling Lustre to be a well-behaved microservice in Kubernetes. Lustre is a distributed file system used in high performance computing (HPC) and can be used in Kubernetes to be extended microservices, so that scientists only need to learn Kubernetes command line to operate Lustre.
+## 1. Vision and Goals of The Project:
+
+The main vision of the project is to enable Lustre to exist as a well behaved microservice in Kubernetes. Lustre, a distributed parallel filesystem popular in the scientific community, is crucial for dealing with the kind of data associated with the scientific and computational workloads and the the data that these processes in turn, generate.
+
+By realizing Lustre as a Kubernetes microservice, we shall be taking the burden of having to go through innumerable steps of installation and configuration, from its user base. The end goal here is to enable users to simply deploy a container image that will have everything pre-baked, so that Lustre runbs smoothly to cater to its user's needs. 
+
+
 
 In order to achieve these goals, we set two major specfictions. First, get more automatic operations working in K8s by adding Go code to create "operators". Second, improve the performance of running Kubervirt in containers by writing C++ code to extend Microsoft's freeflow overlay network.
 
