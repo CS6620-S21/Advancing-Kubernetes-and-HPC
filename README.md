@@ -35,7 +35,7 @@ In order to achieve these goals, we set two major specfictions. First, get more 
 >
 >   Kubernetes operator
 >
->   Watch the videos from last semester
+>   Watch the videos from last semester	
 >
 >   Get onto “MOC”
 >
