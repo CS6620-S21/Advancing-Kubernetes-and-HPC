@@ -1,8 +1,8 @@
 # Advancing-Kubernetes-and-HPC
 
-## MOC Project Proposal
+## 
 
-Advancing Kubernetes and High Performance Computing
+## The Team
 
 | Mentor             | Email                                           |
 | ------------------ | ----------------------------------------------- |
@@ -64,37 +64,135 @@ Write Golang scripts to create "operators" that monitor the cluster and automate
 
 Create a simpified method to set up Lustre in Kubernetes by wrapping the Pod Setup Operator using [Helm.](https://helm.sh)
 
-### 4. Solution Concept:
+### 4. Solution Concept & Glossary of Terms:
 
 ##### Global Architectural Structure
 
-The entire system consists of two major components viz. Kubernetes and Lustre,  which contain various other subcomponents. In fact, Lustre is nested inside Kubernetes. The figure below gives a conceptual overview of the system. 
+The entire system consists of two major components viz. Kubernetes and Lustre. In fact, Lustre is nested inside Kubernetes. The figure below gives a conceptual overview of the system. 
 
 ![LustreInKubeVirt](README.assets/LustreInKubeVirt.png)
 
-###### **Kubernetes  components:**
 
-- K8s operator definition 
 
-turns distributed storage systems into self-managing, self-scaling, self-healing storage services. It automates the tasks of a storage administrator: deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management.
+The way we had envisioned our system, lets us add or remove new pods automatically using the autoscale operator built by our [predecessor teams](https://github.com/BU-CLOUD-F20/Realizing_Microservices_HPC). In addition to this, we have introduced operators that facilitate pod recovery and pod setup. The pod setup operation is now just a single command, as we wrapped all the steps involved in that operator using Helm. 
 
-**Lustre componenets:** 
+The figure below shows the structure of our project setup. 
 
-**Freeflow components:**
+![OurSetup](README.assets/OurSetup.png)
 
->  add figure
+##### Kubernetes Related Terms
+
+###### [Kubernetes](https://kubernetes.io/docs/concepts/overview/what-is-kubernetes/)
+
+Kubernetes is a portable, extensible, open-source platform for managing containerized workloads and services, that facilitates both declarative configuration and automation. It has a large, rapidly growing ecosystem. Kubernetes services, support, and tools are widely available.
+
+###### [Kubernetes Container](https://kubernetes.io/docs/concepts/containers/)
+
+A Kubernetes container is a run is a bundling of (an) application(s) with all its dependecies included and preconfigured. The standardization from having dependencies included means that you get the same behavior wherever you run it.
+
+Containers decouple applications from underlying host infrastructure. This makes deployment easier in different cloud or OS environments.
+
+###### [Kubernetes Pods](https://kubernetes.io/docs/concepts/workloads/pods/)
+
+![Pods](README.assets/Pods.png)
+
+*Pods* are the smallest deployable units of computing that you can create and manage in Kubernetes.
+
+A *Pod* (as in a pod of whales or pea pod) is a group of one or more containers, with shared storage and network resources, and a specification for how to run the containers. A Pod's contents are always co-located and co-scheduled, and run in a shared context. A Pod models an application-specific "logical host": it contains one or more application containers which are relatively tightly coupled. In non-cloud contexts, applications executed on the same physical or virtual machine are analogous to cloud applications executed on the same logical host.
+
+###### [Kubernetes Node](https://kubernetes.io/docs/tutorials/kubernetes-basics/explore/explore-intro/)
+
+![Node](README.assets/Node.png)
+
+A Pod always runs on a Node. A Node is a worker machine in Kubernetes and may be either a virtual or a physical machine, depending on the cluster. Each Node is managed by the Master. A Node can have multiple pods, and the Kubernetes master automatically handles scheduling the pods across the Nodes in the cluster. The Master's automatic scheduling takes into account the available resources on each Node.
+
+###### [Kubernetes Master](https://kubernetes.io/docs/tutorials/kubernetes-basics/explore/explore-intro/)
+
+A Master Node is a node which controls and manages a set of Worker Nodes (workloads runtime) and resembles a cluster in Kubernetes.
+
+
+
+###### [KubeVirt](https://www.openshift.com/learn/topics/virtualization/)
+
+![kubevirt-diagram](README.assets/kubevirt-diagram.png)
+
+KubeVirt is the open source project that makes it possible to run virtual machines in a Kubernetes-managed container platform. KubeVirt delivers container-native virtualization by leveraging KVM, the Linux Kernel hypervisor, within a Kubernetes container. KubeVirt provides services like those associated with traditional virtualization platforms, providing the best of both mature virtualization management technology and Kubernetes container orchestration.
+
+
+
+##### Lustre Related Terms
+
+###### [Lustre](https://wiki.lustre.org/Main_Page)
+
+![800px-Lustre_File_System_Overview_(DNE)_lowres_v1](README.assets/800px-Lustre_File_System_Overview_(DNE)_lowres_v1.png)
+
+Lustre is an open-source, distributed parallel file system software platform designed for scalability, high-performance, and high-availability. Lustre is purpose-built to provide a coherent, global POSIX-compliant namespace for very large scale computer infrastructure, including the world's largest supercomputer platforms. It can support hundreds of petabytes of data storage and hundreds of gigabytes per second in simultaneous, aggregate throughput. Some of the largest current installations have individual file systems in excess of fifty petabytes of usable capacity, and have reported throughput speeds exceeding one terabyte/sec.
+
+###### [Management Server (MGS)](https://wiki.lustre.org/Lustre_Management_Service_(MGS))
+
+ The MGS is a global resource that can be associated with one or more Lustre file systems. It acts as a global registry for configuration information and service state. It does not participate in file system operations.
+
+###### [Management Target (MGT)](https://wiki.lustre.org/Introduction_to_Lustre_Object_Storage_Devices_(OSDs))
+
+MGT is the management service storage target which is a block device used to store configuration data.
+
+###### [Metadata Servers (MDS)](https://wiki.lustre.org/Lustre_Metadata_Service_(MDS))
+
+The MDS makes metadata stored in one or more MDTs available to Lustre clients. Each MDS manages the names and directories in the Lustre file system(s) and provides network request handling for one or more local MDTs.
+
+###### [Metadata Targets (MDT)](https://wiki.lustre.org/Introduction_to_Lustre_Object_Storage_Devices_(OSDs))
+
+For Lustre software release 2.3 and earlier, each file system has one MDT. The MDT stores metadata (such as filenames, directories, permissions and file layout) on storage attached to an MDS. Each file system has one MDT. An MDT on a shared storage target can be available to multiple MDSs, although only one can access it at a time. If an active MDS fails, a standby MDS can serve the MDT and make it available to clients. This is referred to as MDS failover.
+
+###### [Object Storage Servers (OSS)](https://wiki.lustre.org/Lustre_Object_Storage_Service_(OSS))
+
+ The OSS provides file I/O service and network request handling for one or more local OSTs. Typically, an OSS serves between two and eight OSTs, up to 16 TiB each. A typical configuration is an MDT on a dedicated node, two or more OSTs on each OSS node, and a client on each of a large number of compute nodes.
+
+###### [Object Storage Target (OST)](https://wiki.lustre.org/Lustre_Object_Storage_Service_(OSS))
+
+User file data is stored in one or more objects, each object on a separate OST in a Lustre file system. The number of objects per file is configurable by the user and can be tuned to optimize performance for a given workload.
+
+###### [Lustre Clients](https://wiki.lustre.org/Lustre_Client_Requirements_Guidelines) 
+
+Lustre clients are computational, visualization or desktop nodes that are running Lustre client software, allowing them to mount the Lustre file system.The Lustre client software provides an interface between the Linux virtual file system and the Lustre servers. The client software includes a management client (MGC), a metadata client (MDC), and multiple object storage clients (OSCs), one corresponding to each OST in the file system.
+
+
 
 ### 5. Acceptance criteria:
 
-The minimum acceptance criteria is to ..
+The minimum acceptance criteria is to facilitate Lustre to be deployed with ease on MOC instances running Kubernetes.
 
-- continue previous work, manipulate Lustre components on the MOC
-- add more golfing opertor for Kubernetes, including Lustre instance backup, easy configure to install Lustre, dashboard monitoring..
-- make Freeflow work inside Kubernetes
+- Continue previous work, manipulate Lustre components on the MOC.
+- Add more GoLanng operators to facilitate Lustre instance setup, and, recovery.
+- Provide some kind of automation to remove as many pain points as possible, for the end user.
 
 ### 6. Release Planning:
 
-2/19/2021 **Demo 1**: Setup single instance on MOC
+##### 03/05/2021 Demo 1
 
-- Follow the instruction of last year's GitHub to create instance on MOC
+- Gain exposure to MOC and Kubernetes - Understand how to build and manage VM instances.
+- Setup a Kubernetes cluster with one master node and two worker nodes.
+- Present the progress made so far.
 
+##### 03/19/2021 Demo 2
+
+- Familiarize ourselves with the OperatorSDK.
+- Debug the network issue.
+- Mount Lustre components and test the auto scale up/down operator.
+- Present the progress made so far.
+
+##### 04/02/2021 Demo 3
+
+- Create a setup-operator to setup Lustre VM, mount filesystem and deploy a Docker image.
+- Present the progress made so far.
+
+##### 04/16/2021 Demo 4
+
+- Enable the setup-opeartor to do auto recovery for the OSS pod.
+- Wrap the setup-operator using Helm and verify taht the Helm command works as expected.
+- Present the progress made so far.
+
+##### 04/26/2021 Final Presentation and Demo
+
+- Update the documentation.
+- Present all the things we achived and demostrate the project.
