@@ -1,4 +1,4 @@
-# Advancing-Kubernetes-and-HPC
+# Advancing Kubernetes and HPC
 
 ## 
 
